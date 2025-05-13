@@ -1,37 +1,62 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request
+import os
+import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
-import numpy as np
-import os
-from werkzeug.utils import secure_filename
+import requests
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
-model = load_model('model/best_model.h5')
+MODEL_DIR = "model"
+MODEL_PATH = os.path.join(MODEL_DIR, "best_model.h5")
+
+# Ganti URL ini dengan link direct dari Hugging Face
+MODEL_URL = "https://huggingface.co/spaces/calluu/Klasifikasi-penyakit-tanaman-padi/blob/main/best_model.h5"
+
+# Kelas sesuai urutan folder pada training
 class_names = ['Blast', 'Blight', 'Brownspot']
 
-def model_predict(img_path):
-    img = image.load_img(img_path, target_size=(224, 224))
-    img_array = image.img_to_array(img) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
-    prediction = model.predict(img_array)[0]
-    predicted_class = class_names[np.argmax(prediction)]
-    confidence = np.max(prediction) * 100
-    return predicted_class, round(confidence, 2)
+# Unduh model dari Hugging Face jika belum ada
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        os.makedirs(MODEL_DIR, exist_ok=True)
+        print("Mengunduh model dari Hugging Face...")
+        response = requests.get(MODEL_URL)
+        with open(MODEL_PATH, 'wb') as f:
+            f.write(response.content)
+        print("Model berhasil diunduh.")
+
+# Load model
+download_model()
+model = load_model(MODEL_PATH)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    prediction = None
     if request.method == 'POST':
-        f = request.files['image']
-        filename = secure_filename(f.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        f.save(filepath)
+        if 'image' not in request.files:
+            return render_template('index.html', prediction="Tidak ada gambar.")
+        file = request.files['image']
+        if file.filename == '':
+            return render_template('index.html', prediction="Pilih gambar terlebih dahulu.")
+        
+        # Simpan gambar sementara
+        img_path = os.path.join("static", "uploads", file.filename)
+        os.makedirs(os.path.dirname(img_path), exist_ok=True)
+        file.save(img_path)
 
-        label, confidence = model_predict(filepath)
-        return render_template('index.html', prediction=label, confidence=confidence, image_url=filepath)
+        # Preprocessing
+        img = image.load_img(img_path, target_size=(224, 224))  # ukuran sesuai model Paduka
+        img_array = image.img_to_array(img)
+        img_array = np.expand_dims(img_array, axis=0) / 255.0  # normalisasi
 
-    return render_template('index.html', prediction=None)
+        # Prediksi
+        pred = model.predict(img_array)
+        pred_class = class_names[np.argmax(pred)]
+
+        return render_template('index.html', prediction=pred_class, image_path=img_path)
+
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

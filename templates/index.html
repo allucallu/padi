@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Klasifikasi Penyakit Padi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="header">
+        <div class="logo">LOGO</div>
+        <div class="menu">
+            <span class="active">Home</span>
+            <span>Penyakit padi</span>
+            <span>Bantuan</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <form action="/" method="post" enctype="multipart/form-data">
+            <div class="upload-box">
+                <input type="file" name="image" required>
+            </div>
+            <button type="submit" class="btn">Mulai Klasifikasi</button>
+        </form>
+
+        {% if prediction %}
+        <div class="result">
+            <p>Hasil: <strong>{{ prediction }}</strong></p>
+            <p>Akurasi: {{ confidence }}%</p>
+            <img src="{{ image_url }}" alt="Gambar Hasil" style="max-width:300px; margin-top:10px;">
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

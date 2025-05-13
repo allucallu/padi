@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: padi-app
+    env: python
+    buildCommand: ""
+    startCommand: gunicorn app:app
+    plan: free
+    region: singapore
+    runtime: python
+    branch: main
